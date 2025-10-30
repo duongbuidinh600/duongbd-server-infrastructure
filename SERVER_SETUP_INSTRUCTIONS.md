@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides step-by-step instructions to deploy a complete infrastructure stack with Kafka, Redis, MySQL, Elasticsearch, Kibana, and Nginx with SSL/TLS encryption on Ubuntu Server.
+This guide provides step-by-step instructions to deploy a complete infrastructure stack with Kafka, Redis, MySQL, Elasticsearch, Kibana, and Nginx reverse proxy with Cloudflare tunnel for secure external access on Ubuntu Server.
 
 ## Prerequisites
 
@@ -14,8 +14,9 @@ This guide provides step-by-step instructions to deploy a complete infrastructur
 
 ### Domain Requirements
 - Domain name (e.g., `your-domain.com`)
-- Ability to create DNS A records
-- Domain pointing to your server's public IP address
+- Cloudflare account with domain added
+- Cloudflare Tunnel configured for your domain
+- No need for public IP address or DNS A records
 
 ## Installation Steps
 
@@ -55,42 +56,71 @@ echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 ```bash
 # Allow essential ports
 sudo ufw allow 22/tcp    # SSH
-sudo ufw allow 80/tcp    # HTTP (for Let's Encrypt)
-sudo ufw allow 443/tcp   # HTTPS
-
-# Allow application ports
-sudo ufw allow 9092/tcp  # Kafka
-sudo ufw allow 3306/tcp  # MySQL
-sudo ufw allow 6379/tcp  # Redis
+sudo ufw allow 80/tcp    # HTTP (internal Nginx only)
 
 # Enable firewall
 sudo ufw --force enable
 ```
 
-### 2. Domain Configuration
+**Note**: Since we're using Cloudflare tunnel, you don't need to expose application ports (9092, 3306, 6379) to the internet. Nginx only needs port 80 for internal communication.
 
-#### 2.1 Create DNS Records
-Create the following A records pointing to your server's public IP:
+### 2. Cloudflare Tunnel Configuration
 
-| Subdomain | Purpose |
-|-----------|---------|
-| `kafka.your-domain.com` | Kafka UI web interface |
-| `kibana.your-domain.com` | Kibana web interface |
-| `es.your-domain.com` | Elasticsearch API |
-| `your-domain.com` | Base domain (optional) |
+#### 2.1 Set up Cloudflare Tunnel
+1. **Add your domain to Cloudflare** if not already done
+2. **Install Cloudflare tunnel daemon (cloudflared)**:
+   ```bash
+   wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+   sudo dpkg -i cloudflared-linux-amd64.deb
+   ```
+3. **Authenticate Cloudflared**:
+   ```bash
+   cloudflared tunnel login
+   ```
+4. **Create a tunnel**:
+   ```bash
+   cloudflared tunnel create kafka-infrastructure
+   ```
+5. **Configure tunnel origins** - create a config file at `~/.cloudflared/config.yml`:
+   ```yaml
+   tunnel: kafka-infrastructure
+   credentials-file: ~/.cloudflared/[TUNNEL_ID].json
 
-#### 2.2 Verify DNS Propagation
+   ingress:
+     - hostname: kafka.your-domain.com
+       service: http://localhost:80
+     - hostname: kibana.your-domain.com
+       service: http://localhost:80
+     - hostname: es.your-domain.com
+       service: http://localhost:80
+     - service: http_status:404
+   ```
+
+#### 2.2 Configure DNS Records
 ```bash
-# Test DNS resolution
-nslookup kafka.your-domain.com
-nslookup kibana.your-domain.com
-nslookup es.your-domain.com
-
-# Or use dig for more detailed info
-dig +short kafka.your-domain.com
+# Map tunnel to your domain names
+cloudflared tunnel route dns kafka-infrastructure kafka.your-domain.com
+cloudflared tunnel route dns kafka-infrastructure kibana.your-domain.com
+cloudflared tunnel route dns kafka-infrastructure es.your-domain.com
 ```
 
-**Wait for DNS propagation** (typically 5-30 minutes, can take up to 24 hours).
+#### 2.3 Start Cloudflare Tunnel
+```bash
+# Test the tunnel
+cloudflared tunnel run kafka-infrastructure
+
+# Or run as a service
+sudo cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+```
+
+**Benefits of Cloudflare Tunnel**:
+- No public IP required
+- Automatic SSL/TLS termination
+- DDoS protection
+- No need to open ports 443/80 in firewall
+- Built-in CDN and caching
 
 ### 3. Project Deployment
 
@@ -104,7 +134,6 @@ cd your-infrastructure
 # Create project directory and upload all files including:
 # - docker-compose.yml
 # - nginx/ directory and its contents
-# - setup-ssl.sh
 # - .env.example
 ```
 
@@ -123,8 +152,6 @@ DOMAIN=your-domain.com
 KAFKA_UI_SUBDOMAIN=kafka.your-domain.com
 KIBANA_SUBDOMAIN=kibana.your-domain.com
 ELASTICSEARCH_SUBDOMAIN=es.your-domain.com
-LETSENCRYPT_EMAIL=your-email@example.com
-SERVER_IP=YOUR_SERVER_PUBLIC_IP
 ```
 
 #### 3.3 Configure IP Whitelist
@@ -135,33 +162,26 @@ nano nginx/allowed-ips.conf
 
 **Add your IP addresses:**
 ```nginx
-# Local access
-allow 127.0.0.1;
+# Allow all IP addresses (open access)
+allow all;
 
-# Your current IP (find it with: curl ifconfig.me)
-allow YOUR_IP_ADDRESS;
-
-# Your office network (optional)
-allow 192.168.1.0/24;
-
-# Additional IPs as needed
-# allow 203.0.113.42;
+# Or restrict to specific IPs
+# allow 127.0.0.1;
+# allow YOUR_IP_ADDRESS;
+# allow 192.168.1.0/24;  # Office network
 ```
 
-**Find your current IP:**
-```bash
-curl ifconfig.me
-```
+**Note**: With Cloudflare tunnel, you can use `allow all;` for convenience, or restrict to specific IPs for additional security.
 
 ### 4. Service Deployment
 
-#### 4.1 Phase 1: Start Core Services
+#### 4.1 Phase 1: Start All Services
 ```bash
-# Start services without Nginx first
-docker-compose up -d zookeeper kafka kafka-ui redis mysql elasticsearch kibana
+# Start all services at once (no SSL setup needed)
+docker-compose up -d
 ```
 
-#### 4.2 Verify Core Services
+#### 4.2 Verify Services
 ```bash
 # Check container status
 docker-compose ps
@@ -172,31 +192,13 @@ docker-compose logs -f
 
 Wait 2-3 minutes for services to fully initialize.
 
-#### 4.3 Phase 2: SSL Certificate Setup
+#### 4.3 Verify Cloudflare Tunnel
 ```bash
-# Make SSL setup script executable
-chmod +x setup-ssl.sh
+# Check if tunnel is running
+sudo systemctl status cloudflared
 
-# Run SSL setup
-./setup-ssl.sh
-```
-
-**The SSL script will:**
-1. Prompt for your email address
-2. Verify prerequisites
-3. Start Nginx temporarily
-4. Request SSL certificates for all subdomains
-5. Configure automatic renewal
-
-**Important:** Ensure DNS records are configured and propagated before running this script.
-
-#### 4.4 Phase 3: Start All Services
-```bash
-# Stop all services
-docker-compose down
-
-# Start complete stack including Nginx with SSL
-docker-compose up -d
+# Check tunnel logs
+sudo journalctl -u cloudflared -f
 ```
 
 ### 5. Verification and Testing
@@ -210,24 +212,24 @@ docker-compose ps
 docker-compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 ```
 
-#### 5.2 Test HTTPS Access
+#### 5.2 Test Cloudflare Tunnel Access
 ```bash
-# Test web interfaces
+# Test web interfaces through Cloudflare tunnel
 curl -I https://kafka.your-domain.com
 curl -I https://kibana.your-domain.com
 curl https://es.your-domain.com/_cluster/health?pretty
 ```
 
-#### 5.3 Test Direct Service Connections
+#### 5.3 Test Internal Service Connections
 ```bash
-# Test Kafka
-telnet your-domain.com 9092
+# Test Kafka (internal access only)
+docker exec -it kafka kafka-broker-api-versions --bootstrap-server localhost:9092
 
-# Test MySQL
-mysql -h your-domain.com -P 3306 -u root -prootpassword -e "SELECT VERSION();"
+# Test MySQL (internal access only)
+docker exec -it mysql mysql -u root -prootpassword -e "SELECT VERSION();"
 
-# Test Redis
-redis-cli -h your-domain.com -p 6379 ping
+# Test Redis (internal access only)
+docker exec -it redis redis-cli ping
 ```
 
 #### 5.4 Web Interface Access
@@ -236,37 +238,43 @@ Open in your browser:
 - **Kibana**: `https://kibana.your-domain.com`
 - **Elasticsearch**: `https://es.your-domain.com`
 
+**Note**: All access is through HTTPS provided by Cloudflare tunnel, while Nginx communicates with services over HTTP internally.
+
 ## Service Configuration Details
 
 ### Kafka Configuration
-- **Bootstrap Server**: `your-domain.com:9092`
+- **External Access**: Through Cloudflare tunnel: `https://kafka.your-domain.com`
 - **Internal Access**: `kafka:29092` (within Docker network)
 - **Auto-create Topics**: Enabled
 - **Replication Factor**: 1 (single broker)
 - **Memory**: 3GB allocated (2GB heap)
 
 ### MySQL Configuration
-- **Host**: `your-domain.com:3306`
+- **Internal Access**: `mysql:3306` (within Docker network)
 - **Root Password**: `rootpassword` (change in production)
 - **Database**: `mydb`
 - **User**: `dbuser` / `dbpassword`
 - **Memory**: 3GB allocated
 - **Connection Pool**: 200 max connections
+- **External Access**: Via application connections only (not exposed directly)
 
 ### Redis Configuration
-- **Host**: `your-domain.com:6379`
+- **Internal Access**: `redis:6379` (within Docker network)
 - **Max Memory**: 1GB with LRU eviction
 - **Persistence**: AOF enabled
 - **Memory**: 1GB allocated
+- **External Access**: Via application connections only (not exposed directly)
 
 ### Elasticsearch Configuration
-- **URL**: `https://es.your-domain.com`
+- **Web Interface**: `https://es.your-domain.com` (via Cloudflare tunnel)
+- **Internal API**: `http://elasticsearch:9200` (within Docker network)
 - **Cluster Name**: `es-cluster`
 - **Heap Size**: 2GB
 - **Security**: IP whitelist enforced via Nginx
 
 ### Kibana Configuration
-- **URL**: `https://kibana.your-domain.com`
+- **Web Interface**: `https://kibana.your-domain.com` (via Cloudflare tunnel)
+- **Internal Access**: `http://kibana:5601` (within Docker network)
 - **Elasticsearch Host**: `http://elasticsearch:9200`
 - **Security**: IP whitelist enforced via Nginx
 
@@ -313,11 +321,11 @@ docker cp redis:/data/dump.rdb ./redis_backup_$(date +%Y%m%d).rdb
 
 ## Security Configuration
 
-### SSL/TLS Management
-- **Certificates**: Automatically renewed by Certbot
-- **TLS Version**: TLS 1.2+ enforced
-- **HSTS**: Enabled for secure connections
-- **Certificate Validity**: 90 days (auto-renewed)
+### Cloudflare Tunnel Security
+- **SSL/TLS Termination**: Handled by Cloudflare at the edge
+- **TLS Version**: TLS 1.3 enforced by Cloudflare
+- **DDoS Protection**: Automatic by Cloudflare
+- **Zero Trust**: Can be configured with Cloudflare Access
 
 ### IP Whitelist Management
 ```bash
@@ -326,7 +334,7 @@ nano nginx/allowed-ips.conf
 # Add: allow NEW_IP_ADDRESS;
 
 # Reload Nginx configuration
-docker-compose restart nginx
+docker compose restart nginx
 ```
 
 ### Password Security
@@ -336,34 +344,32 @@ openssl rand -base64 32
 
 # Update passwords in docker-compose.yml
 # Restart affected services
-docker-compose up -d mysql redis
+docker compose up -d mysql redis
 ```
+
+### Network Security
+- **Internal Services**: MySQL, Redis, Kafka are not exposed to internet
+- **HTTP-only Backend**: Nginx communicates with services over HTTP internally
+- **External Access**: Only through Cloudflare tunnel with HTTPS
+- **Firewall**: Only SSH and internal HTTP port 80 open
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### DNS Resolution Problems
+#### Cloudflare Tunnel Issues
 ```bash
-# Check DNS records
-nslookup kafka.your-domain.com
+# Check tunnel status
+sudo systemctl status cloudflared
 
-# Check from multiple locations
-# Visit: https://dnschecker.org
+# Check tunnel logs
+sudo journalctl -u cloudflared -f
 
-# Wait for propagation if needed
-```
+# Restart tunnel
+sudo systemctl restart cloudflared
 
-#### SSL Certificate Issues
-```bash
-# Check certificate status
-docker-compose run --rm certbot certificates
-
-# Manually renew certificates
-docker-compose run --rm certbot renew
-
-# Check Nginx configuration
-docker-compose exec nginx nginx -t
+# Test tunnel configuration
+cloudflared tunnel ingress validate
 ```
 
 #### Service Access Issues
@@ -373,7 +379,22 @@ curl -I https://kafka.your-domain.com
 
 # Add your IP to whitelist if needed
 nano nginx/allowed-ips.conf
-docker-compose restart nginx
+docker compose restart nginx
+
+# Check Nginx configuration
+docker compose exec nginx nginx -t
+```
+
+#### Cloudflare DNS Issues
+```bash
+# Check DNS records
+nslookup kafka.your-domain.com
+
+# Verify tunnel routing
+cloudflared tunnel route dns list
+
+# Check if tunnel is properly configured
+cloudflared tunnel info kafka-infrastructure
 ```
 
 #### Memory Issues
@@ -387,11 +408,12 @@ docker stats
 
 #### Port Conflicts
 ```bash
-# Check what's using a port
-sudo lsof -i :9092
-sudo netstat -tulpn | grep 9092
+# Check what's using port 80 (Nginx)
+sudo lsof -i :80
+sudo netstat -tulpn | grep 80
 
-# Kill conflicting process or change port mapping
+# Check Docker port bindings
+docker compose ps
 ```
 
 ### Health Checks
@@ -453,13 +475,18 @@ docker-compose pull
 docker-compose up -d
 ```
 
-### Certificate Renewal Check
+### Cloudflare Tunnel Maintenance
 ```bash
-# Check renewal status
-docker-compose logs certbot
+# Check tunnel status
+sudo systemctl status cloudflared
 
-# Test renewal process
-docker-compose run --rm certbot renew --dry-run
+# Update cloudflared
+sudo apt update && sudo apt install cloudflared
+
+# Recreate tunnel if needed
+cloudflared tunnel delete kafka-infrastructure
+cloudflared tunnel create kafka-infrastructure
+# Re-configure routing as in section 2.2
 ```
 
 ## Network Architecture
@@ -475,9 +502,9 @@ Services communicate using container names on the `kafka-network`:
 - `kafka-ui:8080`
 
 ### External Access
-- **HTTPS Services**: Via Nginx reverse proxy with SSL termination
-- **Direct TCP**: Direct port access to Kafka, MySQL, Redis
-- **Security**: IP whitelist enforced on web interfaces
+- **HTTPS Services**: Via Cloudflare tunnel to Nginx reverse proxy
+- **Internal TCP**: Kafka, MySQL, Redis only accessible within Docker network
+- **Security**: IP whitelist enforced on web interfaces, DDoS protection by Cloudflare
 
 ## Data Persistence
 
@@ -488,34 +515,32 @@ Data is stored in Docker volumes:
 - `mysql-data`, `mysql-config`: MySQL databases
 - `elasticsearch-data`: Elasticsearch indices
 - `nginx-logs`: Nginx logs
-- `certbot/`: SSL certificates (host-mounted)
 
 ## Emergency Procedures
 
 ### Complete System Reset
 ```bash
 # Stop and remove everything
-docker-compose down -v
+docker compose down -v
 
-# Remove SSL certificates
-sudo rm -rf ./certbot/conf
-sudo rm -rf ./certbot/www
+# Remove Cloudflare tunnel (optional)
+cloudflared tunnel delete kafka-infrastructure
 
 # Start fresh
-./setup-ssl.sh
-docker-compose up -d
+docker compose up -d
+# Re-create tunnel following section 2.1
 ```
 
 ### Service Recovery
 ```bash
 # Restart failed service
-docker-compose restart service-name
+docker compose restart service-name
 
 # View detailed logs
-docker-compose logs --tail=100 service-name
+docker compose logs --tail=100 service-name
 
 # Recreate service container
-docker-compose up -d --force-recreate service-name
+docker compose up -d --force-recreate service-name
 ```
 
 ## Additional Resources
@@ -528,10 +553,10 @@ docker-compose up -d --force-recreate service-name
 - [MySQL](https://dev.mysql.com/doc/)
 - [Elasticsearch](https://www.elastic.co/guide/)
 - [Nginx](https://nginx.org/en/docs/)
-- [Let's Encrypt](https://letsencrypt.org/docs/)
+- [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/)
 
 ### Useful Tools
-- [SSL Labs Test](https://www.ssllabs.com/ssltest/) - SSL configuration testing
+- [Cloudflare Dashboard](https://dash.cloudflare.com/) - Tunnel management
 - [DNS Checker](https://dnschecker.org/) - DNS propagation checking
 - [Docker Hub](https://hub.docker.com/) - Container images
 
@@ -539,9 +564,10 @@ docker-compose up -d --force-recreate service-name
 
 For technical issues:
 1. Review the troubleshooting section above
-2. Check service logs: `docker-compose logs [service-name]`
-3. Verify network connectivity and DNS configuration
-4. Refer to official documentation links provided
+2. Check service logs: `docker compose logs [service-name]`
+3. Check Cloudflare tunnel status and logs
+4. Verify network connectivity and DNS configuration
+5. Refer to official documentation links provided
 
 ---
 
