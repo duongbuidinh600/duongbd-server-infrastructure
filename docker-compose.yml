@@ -217,8 +217,7 @@ services:
       retries: 3
       start_period: 60s
 
-
-nginx:
+  nginx:
     image: nginx:1.25-alpine
     container_name: nginx
     hostname: nginx
