@@ -16,9 +16,9 @@ echo -e "${GREEN}SSL Certificate Setup for duongbd.site${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
-# Check if docker-compose is available
-if ! command -v docker-compose &> /dev/null; then
-    echo -e "${RED}Error: docker-compose is not installed${NC}"
+# Check if docker compose is available
+if ! command -v docker compose &> /dev/null; then
+    echo -e "${RED}Error: docker compose is not installed${NC}"
     exit 1
 fi
 
@@ -88,7 +88,7 @@ server {
 EOF
 
 # Start nginx
-docker-compose up -d nginx
+docker compose up -d nginx
 
 echo -e "${YELLOW}Waiting for Nginx to start...${NC}"
 sleep 5
@@ -98,7 +98,7 @@ for domain in "${DOMAINS[@]}"; do
     echo ""
     echo -e "${GREEN}Requesting certificate for $domain...${NC}"
 
-    docker-compose run --rm certbot certonly \
+    docker compose run --rm certbot certonly \
         --webroot \
         --webroot-path=/var/www/certbot \
         --email $EMAIL \
@@ -129,7 +129,7 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "  1. Update nginx/allowed-ips.conf with your allowed IP addresses"
-echo "  2. Restart all services: docker-compose down && docker-compose up -d"
+echo "  2. Restart all services: docker compose down && docker compose up -d"
 echo "  3. Verify HTTPS access to your domains:"
 echo "     - https://kafka.duongbd.site"
 echo "     - https://kibana.duongbd.site"
