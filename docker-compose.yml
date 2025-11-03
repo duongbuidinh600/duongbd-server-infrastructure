@@ -221,6 +221,9 @@ services:
     image: nginx:alpine
     container_name: nginx-proxy
     restart: unless-stopped
+    depends_on:
+      - elasticsearch
+      - kibana
     ports:
       - "80:80"
     volumes:
@@ -228,13 +231,13 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./logs:/var/log/nginx
     networks:
-      - default
+      - kafka-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
 networks:
   kafka-network:
