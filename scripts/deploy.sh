@@ -44,11 +44,11 @@ fi
 
 # Stop existing services
 echo "🛑 Stopping existing services..."
-docker-compose down --remove-orphans || true
+docker compose down --remove-orphans || true
 
 # Start main services first
 echo "🔄 Starting main services..."
-docker-compose up -d
+docker compose up -d
 
 echo "⏳ Waiting for services to be ready..."
 sleep 30
@@ -56,18 +56,18 @@ sleep 30
 # Check service health
 echo "🔍 Checking service health..."
 for service in zookeeper kafka elasticsearch mysql redis; do
-    if docker-compose ps | grep -q "$service.*Up"; then
+    if docker compose ps | grep -q "$service.*Up"; then
         echo "✅ $service is running"
     else
         echo "❌ $service failed to start"
-        docker-compose logs $service
+        docker compose logs $service
     fi
 done
 
 # Start Traefik
 echo "🚦 Starting Traefik..."
 cd traefik
-docker-compose up -d
+docker compose up -d
 cd ..
 
 echo "⏳ Waiting for Traefik to be ready..."
@@ -78,7 +78,7 @@ if curl -s http://localhost:8080/ping > /dev/null; then
     echo "✅ Traefik is running"
 else
     echo "❌ Traefik failed to start"
-    docker-compose -f traefik/docker-compose.yml logs traefik
+    docker compose -f traefik/docker-compose.yml logs traefik
 fi
 
 echo ""
@@ -99,7 +99,7 @@ echo "  Redis:   admin / $REDIS_PASSWORD"
 echo "  MySQL:   scangoo / Duong02vodoi"
 echo ""
 echo "📝 To check logs:"
-echo "  docker-compose logs -f [service-name]"
+echo "  docker compose logs -f [service-name]"
 echo ""
 echo "🛑 To stop:"
-echo "  docker-compose down && docker-compose -f traefik/docker-compose.yml down"
+echo "  docker compose down && docker compose -f traefik/docker-compose.yml down"
