@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Traefik + Cloudflared Deployment Script
-# Usage: ./deploy-traefik.sh [--dry-run] [--force]
+# Traefik Deployment Script (for existing cloudflared setup)
+# Usage: ./deploy-traefik.sh [--dry-run] [--force] [--help]
 
 set -euo pipefail
 
@@ -86,25 +86,20 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check cloudflared
-    if ! command_exists cloudflared; then
-        log_error "cloudflared is not installed. Install it from https://github.com/cloudflare/cloudflared"
-        exit 1
-    fi
-
-    # Check if cloudflared config exists
-    if [[ ! -f "$CLOUDFLARED_CONFIG" ]]; then
-        log_error "Cloudflared config file '$CLOUDFLARED_CONFIG' not found"
-        exit 1
-    fi
-
     # Check if Traefik config exists
     if [[ ! -f "traefik/traefik.yml" ]]; then
         log_error "Traefik configuration file 'traefik/traefik.yml' not found"
         exit 1
     fi
 
+    # Check if cloudflared config exists (for validation only)
+    if [[ ! -f "$CLOUDFLARED_CONFIG" ]]; then
+        log_error "Cloudflared config file '$CLOUDFLARED_CONFIG' not found"
+        exit 1
+    fi
+
     log_success "All prerequisites passed"
+    log_info "Note: Assuming cloudflared is already installed and running on this server"
 }
 
 # Function to test configuration
@@ -119,12 +114,15 @@ test_config() {
         exit 1
     fi
 
-    # Validate cloudflared config
-    if cloudflared tunnel ingress validate "$CLOUDFLARED_CONFIG" >/dev/null 2>&1; then
-        log_success "Cloudflared configuration is valid"
+    # Validate cloudflared config (optional, for validation only)
+    if command_exists cloudflared; then
+        if cloudflared tunnel ingress validate "$CLOUDFLARED_CONFIG" >/dev/null 2>&1; then
+            log_success "Cloudflared configuration is valid"
+        else
+            log_warning "Cloudflared configuration has validation warnings (may still work)"
+        fi
     else
-        log_error "Cloudflared configuration has errors"
-        exit 1
+        log_info "Skipping cloudflared validation (cloudflared not found locally)"
     fi
 }
 
@@ -133,17 +131,17 @@ deploy_services() {
     local dry_run="${1:-false}"
 
     if [[ "$dry_run" == "true" ]]; then
-        log_info "DRY RUN: Would deploy services with:"
+        log_info "DRY RUN: Would deploy Docker services with:"
         echo "  - Docker Compose: $DOCKER_COMPOSE"
-        echo "  - Cloudflared Config: $CLOUDFLARED_CONFIG"
+        echo "  - Cloudflared Config: $CLOUDFLARED_CONFIG (for manual update)"
+        echo
+        echo "Manual steps required:"
+        echo "1. Update cloudflared tunnel config: sudo cp $CLOUDFLARED_CONFIG /path/to/tunnel.yml"
+        echo "2. Restart cloudflared: sudo systemctl restart cloudflared"
         return 0
     fi
 
     log_info "Deploying Traefik and services..."
-
-    # Stop existing cloudflared tunnel
-    log_info "Stopping existing cloudflared tunnel..."
-    pkill -f "cloudflared tunnel" || true
 
     # Deploy Docker services
     log_info "Starting Docker services..."
@@ -163,21 +161,8 @@ deploy_services() {
         exit 1
     fi
 
-    # Start cloudflared tunnel
-    log_info "Starting cloudflared tunnel..."
-    nohup cloudflared tunnel --config "$CLOUDFLARED_CONFIG" run >/var/log/cloudflared.log 2>&1 &
-
-    # Wait for cloudflared to start
-    sleep 5
-
-    # Check if cloudflared is running
-    if pgrep -f "cloudflared tunnel" >/dev/null; then
-        log_success "Cloudflared tunnel is running"
-    else
-        log_error "Cloudflared tunnel failed to start"
-        tail /var/log/cloudflared.log
-        exit 1
-    fi
+    log_warning "Note: cloudflared tunnel management is handled separately"
+    log_info "Update your cloudflared config and restart the service manually"
 }
 
 # Function to run health checks
@@ -206,24 +191,34 @@ health_check() {
 
 # Function to show access information
 show_access_info() {
-    log_success "Deployment completed successfully!"
+    log_success "Docker deployment completed successfully!"
     echo
-    echo "🎯 Access Information:"
-    echo "  Traefik Dashboard (local): http://localhost:8082/dashboard/"
-    echo "  Traefik Dashboard (remote): https://traefik.duongbd.site/dashboard/"
+    echo "🎯 Next Steps Required:"
+    echo "1. Update cloudflared tunnel configuration:"
+    echo "   sudo cp $CLOUDFLARED_CONFIG /path/to/your/tunnel.yml"
+    echo "   sudo systemctl restart cloudflared"
     echo
-    echo "📊 Services:"
-    echo "  Kafka UI:           https://kafka.duongbd.site (user: kafka, pass: password123)"
-    echo "  Redis Commander:    https://redis.duongbd.site (user: redis, pass: password123)"
-    echo "  MySQL Adminer:      https://mysql.duongbd.site (user: admin, pass: admin123)"
-    echo "  Elasticsearch:      https://es.duongbd.site (user: elastic, pass: password123)"
-    echo "  Kibana:             https://kibana.duongbd.site"
-    echo "  Nexus Repository:   https://nexus.duongbd.site"
+    echo "2. Access Information:"
+    echo "   Traefik Dashboard (local): http://localhost:8082/dashboard/"
+    echo "   Traefik Dashboard (remote): https://traefik.duongbd.site/dashboard/"
     echo
-    echo "🔧 Management:"
-    echo "  View logs: docker compose logs -f [service-name]"
-    echo "  Stop all: docker compose down"
-    echo "  Restart: docker compose restart [service-name]"
+    echo "📊 Services (after cloudflared update):"
+    echo "   Kafka UI:           https://kafka.duongbd.site (user: kafka, pass: password123)"
+    echo "   Redis Commander:    https://redis.duongbd.site (user: redis, pass: password123)"
+    echo "   MySQL Adminer:      https://mysql.duongbd.site (user: admin, pass: admin123)"
+    echo "   Elasticsearch:      https://es.duongbd.site (user: elastic, pass: password123)"
+    echo "   Kibana:             https://kibana.duongbd.site"
+    echo "   Nexus Repository:   https://nexus.duongbd.site"
+    echo
+    echo "🔧 Docker Management:"
+    echo "   View logs: docker compose logs -f [service-name]"
+    echo "   Stop all: docker compose down"
+    echo "   Restart: docker compose restart [service-name]"
+    echo
+    echo "🔧 Cloudflared Management:"
+    echo "   Status: sudo systemctl status cloudflared"
+    echo "   Logs: sudo journalctl -u cloudflared -f"
+    echo "   Restart: sudo systemctl restart cloudflared"
     echo
 }
 
@@ -245,10 +240,16 @@ main() {
                 shift
                 ;;
             --help|-h)
+                echo "Traefik Deployment Script (for existing cloudflared setup)"
                 echo "Usage: $0 [--dry-run] [--force] [--help]"
+                echo
+                echo "Options:"
                 echo "  --dry-run: Show what would be done without executing"
-                echo "  --force:   Skip confirmation prompts"
+                echo "  --force:   Skip confirmation prompts and backups"
                 echo "  --help:    Show this help message"
+                echo
+                echo "This script deploys Traefik and Docker services only."
+                echo "Cloudflared tunnel management must be done manually."
                 exit 0
                 ;;
             *)
@@ -259,7 +260,7 @@ main() {
         esac
     done
 
-    log_info "Starting Traefik + Cloudflared deployment..."
+    log_info "Starting Traefik deployment (for existing cloudflared setup)..."
 
     # Check prerequisites
     check_prerequisites
