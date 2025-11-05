@@ -1,7 +1,0 @@
-2025-11-05 09:55:11,878+0000 INFO  [quartz-14-thread-10]  *TASK org.sonatype.nexus.blobstore.s3.ExternalMetadataTask - Task information:
-2025-11-05 09:55:11,879+0000 INFO  [quartz-14-thread-10]  *TASK org.sonatype.nexus.blobstore.s3.ExternalMetadataTask -  ID: 38e28852-be7d-4471-bf5a-102e17d3412a
-2025-11-05 09:55:11,879+0000 INFO  [quartz-14-thread-10]  *TASK org.sonatype.nexus.blobstore.s3.ExternalMetadataTask -  Type: external.blobstore.metadata
-2025-11-05 09:55:11,879+0000 INFO  [quartz-14-thread-10]  *TASK org.sonatype.nexus.blobstore.s3.ExternalMetadataTask -  Name: Retrieve external blobstore metadata
-2025-11-05 09:55:11,879+0000 INFO  [quartz-14-thread-10]  *TASK org.sonatype.nexus.blobstore.s3.ExternalMetadataTask -  Description: retrieving remote blob headers for repositories '*'
-2025-11-05 09:55:11,879+0000 INFO  [quartz-14-thread-10]  *TASK org.sonatype.nexus.blobstore.s3.ExternalMetadataTask - Task configuration: {.updated=2025-11-05T09:55:11.868Z, .name=Retrieve external blobstore metadata, .recoverable=true, external.metadata.repository.format=huggingface, .message=retrieving remote blob headers for repositories '*', .id=38e28852-be7d-4471-bf5a-102e17d3412a, .typeName=Retrieve external blobstore metadata, .visible=false, repositoryName=*, .typeId=external.blobstore.metadata, .exposed=false, .created=2025-11-05T09:55:11.868Z}
-2025-11-05 09:55:11,880+0000 INFO  [quartz-14-thread-10]  *TASK org.sonatype.nexus.blobstore.s3.ExternalMetadataTask - Task complete

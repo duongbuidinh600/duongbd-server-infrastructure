@@ -14,12 +14,10 @@
 # Logs
 logs/
 *.log
-traefik/logs/
 certbot/logs/
 
 # Docker data directories
 nexus-data/
-traefik/letsencrypt/
 
 # Docker volumes and temporary files
 *.pid
