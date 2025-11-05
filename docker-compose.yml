@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
@@ -102,7 +100,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.kafka-ui.rule=Host(`kafka.duongbd.site`)"
       - "traefik.http.routers.kafka-ui.entrypoints=websecure"
-      - "traefik.http.routers.kafka-ui.tls.certresolver=myresolver"
       - "traefik.http.services.kafka-ui.loadbalancer.server.port=8080"
       - "traefik.http.routers.kafka-ui.middlewares=secure-headers@file,rate-limit@file"
 
@@ -125,14 +122,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.redis-commander.rule=Host(`redis.duongbd.site`)"
-      - "traefik.http.routers.redis-commander.entrypoints=websecure"
-      - "traefik.http.routers.redis-commander.tls.certresolver=myresolver"
-      - "traefik.http.routers.redis-commander.middlewares=secure-headers@file"
-      - "traefik.http.services.redis-commander.loadbalancer.server.port=8081"
-
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: redis-commander
@@ -152,7 +141,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.redis-commander.rule=Host(`redis.duongbd.site`)"
       - "traefik.http.routers.redis-commander.entrypoints=websecure"
-      - "traefik.http.routers.redis-commander.tls.certresolver=myresolver"
       - "traefik.http.routers.redis-commander.middlewares=secure-headers@file"
       - "traefik.http.services.redis-commander.loadbalancer.server.port=8081"
 
@@ -210,7 +198,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.mysql.rule=Host(`mysql.duongbd.site`)"
       - "traefik.http.routers.mysql.entrypoints=websecure"
-      - "traefik.http.routers.mysql.tls.certresolver=myresolver"
       - "traefik.http.routers.mysql.middlewares=secure-headers@file"
       - "traefik.http.services.mysql.loadbalancer.server.port=8080"
 
@@ -254,7 +241,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.elasticsearch.rule=Host(`es.duongbd.site`)"
       - "traefik.http.routers.elasticsearch.entrypoints=websecure"
-      - "traefik.http.routers.elasticsearch.tls.certresolver=myresolver"
       - "traefik.http.routers.elasticsearch.middlewares=secure-headers@file,rate-limit@file"
       - "traefik.http.services.elasticsearch.loadbalancer.server.port=9200"
 
@@ -270,6 +256,7 @@ services:
       ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
       SERVER_NAME: kibana
       xpack.security.enabled: 'false'
+      NODE_OPTIONS: '--no-openssl-legacy-provider'
     networks:
       - scangoo-network
       - traefik-network
@@ -285,7 +272,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.kibana.rule=Host(`kibana.duongbd.site`)"
       - "traefik.http.routers.kibana.entrypoints=websecure"
-      - "traefik.http.routers.kibana.tls.certresolver=myresolver"
       - "traefik.http.routers.kibana.middlewares=secure-headers@file,rate-limit@file"
       - "traefik.http.services.kibana.loadbalancer.server.port=5601"
 
@@ -313,7 +299,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.nexus.rule=Host(`nexus.duongbd.site`)"
       - "traefik.http.routers.nexus.entrypoints=websecure"
-      - "traefik.http.routers.nexus.tls.certresolver=myresolver"
       - "traefik.http.routers.nexus.middlewares=secure-headers@file,rate-limit@file"
       - "traefik.http.services.nexus.loadbalancer.server.port=8081"
 

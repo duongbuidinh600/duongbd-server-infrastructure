@@ -1,5 +1,4 @@
 # Traefik Configuration
-version: '3.8'
 
 services:
   traefik:
@@ -14,9 +13,6 @@ services:
       - "--providers.docker.network=traefik-network"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=admin@duongbd.site"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
       - "--log.level=INFO"
       - "--accesslog=true"
       - "--metrics.prometheus=true"
@@ -27,7 +23,6 @@ services:
       - "8080:8080"  # Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/letsencrypt:/letsencrypt
       - ./traefik/config:/etc/traefik
     networks:
       - traefik-network
@@ -36,7 +31,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`traefik.duongbd.site`)"
       - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
       - "traefik.http.routers.traefik.service=traefik"
       - "traefik.http.routers.traefik.middlewares=traefik-auth"

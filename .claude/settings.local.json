@@ -5,7 +5,11 @@
       "mcp__serena__activate_project",
       "Read(//etc/**)",
       "Bash(nginx:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker exec:*)",
+      "WebFetch(domain:www.elastic.co)"
     ],
     "deny": [],
     "ask": []
