@@ -1,7 +1,7 @@
 tunnel: d46bfa9f-b5ef-4393-8191-dc058a9577db
 credentials-file: /home/boi/.cloudflared/d46bfa9f-b5ef-4393-8191-dc058a9577db.json
 ingress:
-  - hostname: ssh.yourdomain.com
+  - hostname: ssh.duongbd.site
     service: ssh://localhost:22
     # Route kibana subdomain directly to Kibana
   - hostname: kibana.duongbd.site
@@ -30,6 +30,12 @@ ingress:
   # Route Nexus subdomain directly to Nexus service
   - hostname: nexus.duongbd.site
     service: http://localhost:8081
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+  # Route Redis subdomain directly to Redis service
+  - hostname: redis.duongbd.site
+    service: http://localhost:6379
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
