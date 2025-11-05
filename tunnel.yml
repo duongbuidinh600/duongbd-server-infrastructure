@@ -1,49 +1,63 @@
 tunnel: d46bfa9f-b5ef-4393-8191-dc058a9577db
 credentials-file: /home/boi/.cloudflared/d46bfa9f-b5ef-4393-8191-dc058a9577db.json
 ingress:
+  # SSH service - direct routing (bypasses Traefik)
   - hostname: ssh.duongbd.site
     service: ssh://localhost:22
-    # Route kibana subdomain directly to Kibana
-  - hostname: kibana.duongbd.site
-    service: http://localhost:5601
+
+  # All HTTP/HTTPS services route through Traefik (port 80)
+  # Traefik will handle routing, SSL, security headers, authentication
+  - hostname: traefik.duongbd.site
+    service: http://localhost:80
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
-  # Route kafka subdomain directly to Kafka UI
+
   - hostname: kafka.duongbd.site
-    service: http://localhost:8080
+    service: http://localhost:80
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
-  # Route elasticsearch subdomain directly to Elasticsearch
+
+  - hostname: kibana.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
   - hostname: es.duongbd.site
-    service: http://localhost:9200
+    service: http://localhost:80
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
-  # Route MySQL subdomain directly to MySQL service
+
   - hostname: mysql.duongbd.site
-    service: tcp://localhost:3306
+    service: http://localhost:80
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
-  # Route Nexus subdomain directly to Nexus service
-  - hostname: nexus.duongbd.site
-    service: http://localhost:8081
-    originRequest:
-      noTLSVerify: true
-      connectTimeout: 30s
-  # Route Redis subdomain directly to Redis service
+
   - hostname: redis.duongbd.site
-    service: http://localhost:6379
+    service: http://localhost:80
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
-  # Route test subdomain to application running on port 3000
+
+  - hostname: nexus.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # Test/development subdomain
   - hostname: test.duongbd.site
-    service: http://localhost:3000
+    service: http://localhost:80
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
-  # Catch-all rule, send to 404 page
-  - service: http_status:404
+
+  # Catch-all rule - route to Traefik for handling
+  - service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s

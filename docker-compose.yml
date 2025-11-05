@@ -18,6 +18,7 @@ services:
       - zookeeper-logs:/var/lib/zookeeper/log
     networks:
       - scangoo-network
+      - traefik-network
     mem_limit: 512m
     mem_reservation: 256m
 
@@ -70,6 +71,7 @@ services:
       - kafka-data:/var/lib/kafka/data
     networks:
       - scangoo-network
+      - traefik-network
     mem_limit: 3g
     mem_reservation: 2g
     healthcheck:
@@ -85,8 +87,7 @@ services:
     restart: unless-stopped
     depends_on:
       - kafka
-    ports:
-      - "8080:8080"
+    # Remove port exposure - Traefik will handle it
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
@@ -94,21 +95,29 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'
     networks:
       - scangoo-network
+      - traefik-network
     mem_limit: 512m
     mem_reservation: 256m
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kafka-ui.rule=Host(`kafka.duongbd.site`)"
+      - "traefik.http.routers.kafka-ui.entrypoints=websecure"
+      - "traefik.http.routers.kafka-ui.tls.certresolver=myresolver"
+      - "traefik.http.services.kafka-ui.loadbalancer.server.port=8080"
+      - "traefik.http.routers.kafka-ui.middlewares=secure-headers@file,rate-limit@file"
 
   redis:
     image: redis:7.2-alpine
     container_name: redis
     hostname: redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    # Remove port exposure - use internal only
     command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
     networks:
       - scangoo-network
+      - traefik-network
     mem_limit: 1g
     mem_reservation: 512m
     healthcheck:
@@ -116,14 +125,43 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.redis-commander.rule=Host(`redis.duongbd.site`)"
+      - "traefik.http.routers.redis-commander.entrypoints=websecure"
+      - "traefik.http.routers.redis-commander.tls.certresolver=myresolver"
+      - "traefik.http.routers.redis-commander.middlewares=secure-headers@file"
+      - "traefik.http.services.redis-commander.loadbalancer.server.port=8081"
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      HTTP_USER: admin
+      HTTP_PASSWORD: ${REDIS_PASSWORD:-admin123}
+    networks:
+      - scangoo-network
+      - traefik-network
+    mem_limit: 256m
+    mem_reservation: 128m
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.redis-commander.rule=Host(`redis.duongbd.site`)"
+      - "traefik.http.routers.redis-commander.entrypoints=websecure"
+      - "traefik.http.routers.redis-commander.tls.certresolver=myresolver"
+      - "traefik.http.routers.redis-commander.middlewares=secure-headers@file"
+      - "traefik.http.services.redis-commander.loadbalancer.server.port=8081"
 
   mysql:
     image: mysql:8.0
     container_name: mysql
     hostname: mysql
     restart: unless-stopped
-    ports:
-      - "3306:3306"
+    # Remove port exposure - use internal only
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: scangoo
@@ -146,6 +184,7 @@ services:
       - mysql-config:/etc/mysql/conf.d
     networks:
       - scangoo-network
+      - traefik-network
     mem_limit: 3g
     mem_reservation: 2g
     healthcheck:
@@ -154,14 +193,33 @@ services:
       timeout: 5s
       retries: 3
 
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    networks:
+      - scangoo-network
+      - traefik-network
+    mem_limit: 256m
+    mem_reservation: 128m
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mysql.rule=Host(`mysql.duongbd.site`)"
+      - "traefik.http.routers.mysql.entrypoints=websecure"
+      - "traefik.http.routers.mysql.tls.certresolver=myresolver"
+      - "traefik.http.routers.mysql.middlewares=secure-headers@file"
+      - "traefik.http.services.mysql.loadbalancer.server.port=8080"
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
     container_name: elasticsearch
     hostname: elasticsearch
     restart: unless-stopped
-    ports:
-      - "9200:9200"
-      - "9300:9300"
+    # Remove port exposure - Traefik will handle it
     environment:
       - node.name=es-node-1
       - cluster.name=es-cluster
@@ -183,6 +241,7 @@ services:
       - elasticsearch-data:/usr/share/elasticsearch/data
     networks:
       - scangoo-network
+      - traefik-network
     mem_limit: 3g
     mem_reservation: 2g
     healthcheck:
@@ -191,6 +250,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.elasticsearch.rule=Host(`es.duongbd.site`)"
+      - "traefik.http.routers.elasticsearch.entrypoints=websecure"
+      - "traefik.http.routers.elasticsearch.tls.certresolver=myresolver"
+      - "traefik.http.routers.elasticsearch.middlewares=secure-headers@file,rate-limit@file"
+      - "traefik.http.services.elasticsearch.loadbalancer.server.port=9200"
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.3
@@ -199,14 +265,14 @@ services:
     restart: unless-stopped
     depends_on:
       - elasticsearch
-    ports:
-      - "5601:5601"
+    # Remove port exposure - Traefik will handle it
     environment:
       ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
       SERVER_NAME: kibana
       xpack.security.enabled: 'false'
     networks:
       - scangoo-network
+      - traefik-network
     mem_limit: 1g
     mem_reservation: 512m
     healthcheck:
@@ -215,26 +281,49 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kibana.rule=Host(`kibana.duongbd.site`)"
+      - "traefik.http.routers.kibana.entrypoints=websecure"
+      - "traefik.http.routers.kibana.tls.certresolver=myresolver"
+      - "traefik.http.routers.kibana.middlewares=secure-headers@file,rate-limit@file"
+      - "traefik.http.services.kibana.loadbalancer.server.port=5601"
+
   nexus:
     image: sonatype/nexus3:latest
     container_name: nexus
     restart: unless-stopped
-    ports:
-      - "8081:8081"  # Only expose locally, cloudflared will handle external access
+    # Remove port exposure - Traefik will handle it
     volumes:
       - ./nexus-data:/nexus-data
     environment:
       - INSTALL4J_ADD_VM_PARAMS=-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g
     networks:
       - scangoo-network
+      - traefik-network
+    mem_limit: 3g
+    mem_reservation: 2g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 120s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nexus.rule=Host(`nexus.duongbd.site`)"
+      - "traefik.http.routers.nexus.entrypoints=websecure"
+      - "traefik.http.routers.nexus.tls.certresolver=myresolver"
+      - "traefik.http.routers.nexus.middlewares=secure-headers@file,rate-limit@file"
+      - "traefik.http.services.nexus.loadbalancer.server.port=8081"
+
 networks:
   scangoo-network:
     driver: bridge
+    external: true
+  traefik-network:
+    driver: bridge
+    external: false
 
 volumes:
   zookeeper-data:

@@ -1,0 +1,44 @@
+# Traefik Middlewares Configuration
+http:
+  middlewares:
+    # Security Headers
+    secure-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+
+    # Rate Limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
+
+    # Compression
+    compression:
+      compress:
+        excludedContentTypes:
+          - text/event-stream
+
+  
+    # CORS for APIs
+    cors:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+          - DELETE
+        accessControlAllowOriginList:
+          - "*"
+        accessControlAllowHeaders:
+          - "*"
+        accessControlMaxAge: 100
