@@ -83,7 +83,6 @@ services:
     restart: unless-stopped
     depends_on:
       - kafka
-    # Port exposure handled directly
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
@@ -93,9 +92,14 @@ services:
       - scangoo-network
     mem_limit: 512m
     mem_reservation: 256m
-    # Expose port directly for external access
-    ports:
-      - "8080:8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kafka-ui.rule=Host(`kafka.duongbd.site`)"
+      - "traefik.http.routers.kafka-ui.entrypoints=websecure"
+      - "traefik.http.routers.kafka-ui.tls=true"
+      - "traefik.http.services.kafka-ui.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.kafka-ui-auth.basicauth.users=kafka:$$apr1$$dGf3Dk8E$$lK8nVkr9hVZFIW1qGjHe2Z"
+      - "traefik.http.routers.kafka-ui.middlewares=kafka-ui-auth,compression@file,security-headers@file"
 
   redis:
     image: redis:7.2-alpine
@@ -131,9 +135,14 @@ services:
       - scangoo-network
     mem_limit: 256m
     mem_reservation: 128m
-    # Expose port directly for external access
-    ports:
-      - "8081:8081"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.redis-commander.rule=Host(`redis.duongbd.site`)"
+      - "traefik.http.routers.redis-commander.entrypoints=websecure"
+      - "traefik.http.routers.redis-commander.tls=true"
+      - "traefik.http.services.redis-commander.loadbalancer.server.port=8081"
+      - "traefik.http.middlewares.redis-auth.basicauth.users=redis:$$apr1$$aH4Ei9Df$$mN9oKls0hWXYGJ2rKjHe3Z"
+      - "traefik.http.routers.redis-commander.middlewares=redis-auth,compression@file,security-headers@file"
 
   mysql:
     image: mysql:8.0
@@ -185,9 +194,14 @@ services:
       - scangoo-network
     mem_limit: 256m
     mem_reservation: 128m
-    # Expose port directly for external access
-    ports:
-      - "8080:8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.adminer.rule=Host(`mysql.duongbd.site`)"
+      - "traefik.http.routers.adminer.entrypoints=websecure"
+      - "traefik.http.routers.adminer.tls=true"
+      - "traefik.http.services.adminer.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.admin-auth.basicauth.users=admin:$$apr1$$cV6C2B8E$$XqGjHe2ZK8nVkr9hVZFIW1"
+      - "traefik.http.routers.adminer.middlewares=admin-auth,compression@file,security-headers@file"
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
@@ -224,9 +238,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    # Expose port directly for external access
-    ports:
-      - "9200:9200"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.elasticsearch.rule=Host(`es.duongbd.site`)"
+      - "traefik.http.routers.elasticsearch.entrypoints=websecure"
+      - "traefik.http.routers.elasticsearch.tls=true"
+      - "traefik.http.services.elasticsearch.loadbalancer.server.port=9200"
+      - "traefik.http.middlewares.es-auth.basicauth.users=elastic:$$apr1$$bJ5Fk8Eg$$nO1pLmt1iXYZHK3sLjIf4A"
+      - "traefik.http.routers.elasticsearch.middlewares=es-auth,compression@file,security-headers@file,cors@file"
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.3
@@ -251,9 +270,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    # Expose port directly for external access
-    ports:
-      - "5601:5601"
+  labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kibana.rule=Host(`kibana.duongbd.site`)"
+      - "traefik.http.routers.kibana.entrypoints=websecure"
+      - "traefik.http.routers.kibana.tls=true"
+      - "traefik.http.services.kibana.loadbalancer.server.port=5601"
+      - "traefik.http.routers.kibana.middlewares=compression@file,security-headers@file"
 
   nexus:
     image: sonatype/nexus3:latest
@@ -275,9 +298,60 @@ services:
       timeout: 10s
       retries: 3
       start_period: 120s
-    # Expose port directly for external access
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nexus.rule=Host(`nexus.duongbd.site`)"
+      - "traefik.http.routers.nexus.entrypoints=websecure"
+      - "traefik.http.routers.nexus.tls=true"
+      - "traefik.http.services.nexus.loadbalancer.server.port=8081"
+      - "traefik.http.routers.nexus.middlewares=compression@file,security-headers@file"
+
+# Traefik Reverse Proxy
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "80:80"      # HTTP
+      - "443:443"     # HTTPS
+      - "8443:8443"   # Admin HTTPS (for cloudflared)
+      - "8082:8080"   # Traefik dashboard (HTTP, local only)
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=scangoo-network"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.traefik.address=:8443"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--metrics.prometheus=true"
+      - "--ping=true"
+      - "--global.sendAnonymousUsage=false"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic-config.yml:/etc/traefik/dynamic/dynamic-config.yml:ro
+      - ./traefik/certs:/etc/traefik/certs:ro
+      - traefik-logs:/var/log/traefik
+    networks:
+      - scangoo-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik.entrypoints=web"
+      - "traefik.http.routers.traefik.service=api@internal"
+    mem_limit: 512m
+    mem_reservation: 256m
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 networks:
   scangoo-network:
@@ -299,5 +373,5 @@ volumes:
     driver: local
   elasticsearch-data:
     driver: local
-  nginx-logs:
+  traefik-logs:
     driver: local

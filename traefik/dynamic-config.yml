@@ -1,0 +1,173 @@
+http:
+  middlewares:
+    # Service-specific middlewares
+    kafka-ui-auth:
+      basicAuth:
+        users:
+          - "kafka:$apr1$dGf3Dk8E$lK8nVkr9hVZFIW1qGjHe2Z"
+
+    redis-auth:
+      basicAuth:
+        users:
+          - "redis:$apr1$aH4Ei9Df$mN9oKls0hWXYGJ2rKjHe3Z"
+
+    es-auth:
+      basicAuth:
+        users:
+          - "elastic:$apr1$bJ5Fk8Eg$nO1pLmt1iXYZHK3sLjIf4A"
+
+    # CORS middleware
+    cors:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+          - DELETE
+        accessControlAllowOriginList:
+          - "https://duongbd.site"
+          - "https://*.duongbd.site"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 100
+
+    # API prefix middleware
+    api-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/api"
+        forceSlash: false
+
+  # Service routing configuration
+  services:
+    kafka-ui-service:
+      loadBalancer:
+        servers:
+          - url: "http://kafka-ui:8080"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+
+    redis-commander-service:
+      loadBalancer:
+        servers:
+          - url: "http://redis-commander:8081"
+        healthCheck:
+          path: "/"
+          interval: "30s"
+
+    adminer-service:
+      loadBalancer:
+        servers:
+          - url: "http://adminer:8080"
+        healthCheck:
+          path: "/"
+          interval: "30s"
+
+    kibana-service:
+      loadBalancer:
+        servers:
+          - url: "http://kibana:5601"
+        healthCheck:
+          path: "/api/status"
+          interval: "30s"
+
+    elasticsearch-service:
+      loadBalancer:
+        servers:
+          - url: "http://elasticsearch:9200"
+        healthCheck:
+          path: "/_cluster/health"
+          interval: "30s"
+
+    nexus-service:
+      loadBalancer:
+        servers:
+          - url: "http://nexus:8081"
+        healthCheck:
+          path: "/"
+          interval: "30s"
+
+  # Router configuration
+  routers:
+    # Kafka UI
+    kafka-ui-router:
+      rule: "Host(`kafka.duongbd.site`) && PathPrefix(`/`)"
+      service: "kafka-ui-service"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "kafka-ui-auth"
+        - "compression"
+        - "security-headers"
+      tls: {}
+
+    # Redis Commander
+    redis-router:
+      rule: "Host(`redis.duongbd.site`) && PathPrefix(`/`)"
+      service: "redis-commander-service"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "redis-auth"
+        - "compression"
+        - "security-headers"
+      tls: {}
+
+    # MySQL Adminer
+    mysql-router:
+      rule: "Host(`mysql.duongbd.site`) && PathPrefix(`/`)"
+      service: "adminer-service"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "admin-auth"
+        - "compression"
+        - "security-headers"
+      tls: {}
+
+    # Elasticsearch
+    elasticsearch-router:
+      rule: "Host(`es.duongbd.site`) && PathPrefix(`/`)"
+      service: "elasticsearch-service"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "es-auth"
+        - "compression"
+        - "security-headers"
+        - "cors"
+      tls: {}
+
+    # Kibana
+    kibana-router:
+      rule: "Host(`kibana.duongbd.site`) && PathPrefix(`/`)"
+      service: "kibana-service"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "compression"
+        - "security-headers"
+      tls: {}
+
+    # Nexus Repository
+    nexus-router:
+      rule: "Host(`nexus.duongbd.site`) && PathPrefix(`/`)"
+      service: "nexus-service"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "compression"
+        - "security-headers"
+      tls: {}
+
+    # Traefik Dashboard (internal only)
+    dashboard-router:
+      rule: "Host(`traefik.duongbd.site`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      service: "api@internal"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "admin-auth"
+        - "security-headers"
+      tls: {}

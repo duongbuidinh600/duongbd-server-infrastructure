@@ -14,7 +14,8 @@
       "Bash(docker restart:*)",
       "Bash(docker ps:*)",
       "Bash(find:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:doc.traefik.io)"
     ],
     "deny": [],
     "ask": []
