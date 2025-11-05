@@ -81,7 +81,7 @@ check_prerequisites() {
     fi
 
     # Check Docker Compose
-    if ! command_exists docker-compose && ! docker compose version >/dev/null 2>&1; then
+    if ! command_exists docker compose && ! docker compose version >/dev/null 2>&1; then
         log_error "Docker Compose is not installed"
         exit 1
     fi
@@ -112,7 +112,7 @@ test_config() {
     log_info "Testing configuration files..."
 
     # Validate Docker Compose file
-    if docker-compose -f "$DOCKER_COMPOSE" config >/dev/null 2>&1; then
+    if docker compose -f "$DOCKER_COMPOSE" config >/dev/null 2>&1; then
         log_success "Docker Compose configuration is valid"
     else
         log_error "Docker Compose configuration has errors"
@@ -147,8 +147,8 @@ deploy_services() {
 
     # Deploy Docker services
     log_info "Starting Docker services..."
-    docker-compose down
-    docker-compose up -d --force-recreate
+    docker compose down
+    docker compose up -d --force-recreate
 
     # Wait for Traefik to be ready
     log_info "Waiting for Traefik to start..."
@@ -159,7 +159,7 @@ deploy_services() {
         log_success "Traefik is running"
     else
         log_error "Traefik failed to start"
-        docker-compose logs traefik
+        docker compose logs traefik
         exit 1
     fi
 
@@ -221,9 +221,9 @@ show_access_info() {
     echo "  Nexus Repository:   https://nexus.duongbd.site"
     echo
     echo "🔧 Management:"
-    echo "  View logs: docker-compose logs -f [service-name]"
-    echo "  Stop all: docker-compose down"
-    echo "  Restart: docker-compose restart [service-name]"
+    echo "  View logs: docker compose logs -f [service-name]"
+    echo "  Stop all: docker compose down"
+    echo "  Restart: docker compose restart [service-name]"
     echo
 }
 
