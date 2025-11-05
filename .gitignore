@@ -1,0 +1,73 @@
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+traefik/logs/
+certbot/logs/
+
+# Docker data directories
+nexus-data/
+traefik/letsencrypt/
+
+# Docker volumes and temporary files
+*.pid
+*.seed
+*.pid.lock
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Node.js (if any scripts use node)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if any Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv/
+
+# Cloudflare tunnel credentials
+cloudflared/
+tunnel-credentials.json
+
+# Certbot/Let's Encrypt
+certbot/conf/
+certbot/www/
+certbot/logs/
+
+# Temporary and cache files
+.cache/
+*.cache
+tmp/
+temp/

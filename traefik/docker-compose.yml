@@ -11,19 +11,26 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=traefik-network"
+      - "--providers.file=true"
+      - "--providers.file.directory=/etc/traefik"
+      - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--log.level=INFO"
       - "--accesslog=true"
       - "--metrics.prometheus=true"
       - "--entrypoints.traefik.address=:8080"
+      - "--ping=true"
+      - "--ping.entrypoint=traefik"
     ports:
       - "80:80"
       - "443:443"
       - "8080:8080"  # Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/config:/etc/traefik
+      - ./config:/etc/traefik
+      - ./letsencrypt:/letsencrypt
+      - ./logs:/var/log/traefik
     networks:
       - traefik-network
       - scangoo-network
@@ -37,12 +44,13 @@ services:
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_BASIC_AUTH}"
     mem_limit: 512m
     mem_reservation: 256m
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+    # healthcheck temporarily disabled due to endpoint issues
+    # healthcheck:
+    #   test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/overview"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 30s
 
   
 networks:

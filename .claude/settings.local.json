@@ -9,7 +9,12 @@
       "Bash(docker logs:*)",
       "Bash(docker compose:*)",
       "Bash(docker exec:*)",
-      "WebFetch(domain:www.elastic.co)"
+      "WebFetch(domain:www.elastic.co)",
+      "Bash(docker inspect:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker ps:*)",
+      "Bash(find:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

@@ -27,7 +27,7 @@ http:
         excludedContentTypes:
           - text/event-stream
 
-  
+
     # CORS for APIs
     cors:
       headers:
