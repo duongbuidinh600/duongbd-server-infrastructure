@@ -1,0 +1,50 @@
+tunnel: d46bfa9f-b5ef-4393-8191-dc058a9577db
+credentials-file: /home/boi/.cloudflared/d46bfa9f-b5ef-4393-8191-dc058a9577db.json
+ingress:
+  # SSH service - direct routing
+  - hostname: ssh.duongbd.site
+    service: ssh://localhost:22
+
+  # HTTP/HTTPS services - direct port routing
+  - hostname: kafka.duongbd.site
+    service: http://localhost:8080
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: kibana.duongbd.site
+    service: http://localhost:5601
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: es.duongbd.site
+    service: http://localhost:9200
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: mysql.duongbd.site
+    service: http://localhost:8080
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: redis.duongbd.site
+    service: http://localhost:8081
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: nexus.duongbd.site
+    service: http://localhost:8081
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # Kafka broker direct access
+  - hostname: kafka-broker.duongbd.site
+    service: tcp://localhost:9092
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
