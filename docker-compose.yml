@@ -259,34 +259,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 120s
-    # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"     # HTTP only - SSL handled by Cloudflared
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - nginx-logs:/var/log/nginx
-    networks:
-      - scangoo-network
-    mem_limit: 512m
-    mem_reservation: 256m
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/nginx-health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    depends_on:
-      - kafka-ui
-      - redis-commander
-      - adminer
-      - elasticsearch
-      - kibana
-      - nexus
 
 networks:
   scangoo-network:
@@ -307,6 +279,4 @@ volumes:
   mysql-config:
     driver: local
   elasticsearch-data:
-    driver: local
-  nginx-logs:
     driver: local
