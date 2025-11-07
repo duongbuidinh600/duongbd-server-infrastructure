@@ -6,52 +6,52 @@ ingress:
   - hostname: ssh.duongbd.site
     service: ssh://localhost:22
 
-  # Traefik dashboard (admin only)
-  - hostname: traefik.duongbd.site
-    service: https://localhost:8443
+  # Nginx dashboard (admin only)
+  - hostname: nginx.duongbd.site
+    service: https://localhost:443
     originRequest:
       noTLSVerify: false
       connectTimeout: 30s
-      httpHostHeader: traefik.duongbd.site
+      httpHostHeader: nginx.duongbd.site
 
-  # All HTTP services now route through Traefik
+  # All HTTP services now route through Nginx
   - hostname: kafka.duongbd.site
-    service: https://localhost:8443
+    service: https://localhost:443
     originRequest:
       noTLSVerify: false
       connectTimeout: 30s
       httpHostHeader: kafka.duongbd.site
 
   - hostname: kibana.duongbd.site
-    service: https://localhost:8443
+    service: https://localhost:443
     originRequest:
       noTLSVerify: false
       connectTimeout: 30s
       httpHostHeader: kibana.duongbd.site
 
   - hostname: es.duongbd.site
-    service: https://localhost:8443
+    service: https://localhost:443
     originRequest:
       noTLSVerify: false
       connectTimeout: 30s
       httpHostHeader: es.duongbd.site
 
   - hostname: mysql.duongbd.site
-    service: https://localhost:8443
+    service: https://localhost:443
     originRequest:
       noTLSVerify: false
       connectTimeout: 30s
       httpHostHeader: mysql.duongbd.site
 
   - hostname: redis.duongbd.site
-    service: https://localhost:8443
+    service: https://localhost:443
     originRequest:
       noTLSVerify: false
       connectTimeout: 30s
       httpHostHeader: redis.duongbd.site
 
   - hostname: nexus.duongbd.site
-    service: https://localhost:8443
+    service: https://localhost:443
     originRequest:
       noTLSVerify: false
       connectTimeout: 30s
@@ -65,7 +65,7 @@ ingress:
       connectTimeout: 30s
 
 # Final rule to catch all other traffic
-  - service: https://localhost:8443
+  - service: https://localhost:443
     originRequest:
       noTLSVerify: false
       connectTimeout: 30s

@@ -15,7 +15,8 @@
       "Bash(docker ps:*)",
       "Bash(find:*)",
       "Bash(curl:*)",
-      "WebFetch(domain:doc.traefik.io)"
+      "WebFetch(domain:doc.traefik.io)",
+      "Bash(openssl req:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,13 +1,12 @@
 #!/bin/bash
 
-# Traefik Deployment Script (for existing cloudflared setup)
-# Usage: ./deploy-traefik.sh [--dry-run] [--force] [--help]
+# Nginx Deployment Script (for existing cloudflared setup)
+# Usage: ./deploy-nginx.sh [--dry-run] [--force] [--help]
 
 set -euo pipefail
 
 # Configuration
-CLOUDFLARED_CONFIG="tunnel-traefik.yml"
-LEGACY_CONFIG="tunnel.yml"
+CLOUDFLARED_CONFIG="tunnel.yml"
 DOCKER_COMPOSE="docker-compose.yml"
 
 # Colors for output
@@ -86,9 +85,9 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check if Traefik config exists
-    if [[ ! -f "traefik/traefik.yml" ]]; then
-        log_error "Traefik configuration file 'traefik/traefik.yml' not found"
+    # Check if Nginx config exists
+    if [[ ! -f "nginx/nginx.conf" ]]; then
+        log_error "Nginx configuration file 'nginx/nginx.conf' not found"
         exit 1
     fi
 
@@ -141,23 +140,23 @@ deploy_services() {
         return 0
     fi
 
-    log_info "Deploying Traefik and services..."
+    log_info "Deploying Nginx and services..."
 
     # Deploy Docker services
     log_info "Starting Docker services..."
     docker compose down
     docker compose up -d --force-recreate
 
-    # Wait for Traefik to be ready
-    log_info "Waiting for Traefik to start..."
+    # Wait for Nginx to be ready
+    log_info "Waiting for Nginx to start..."
     sleep 10
 
-    # Check if Traefik is running
-    if docker ps | grep -q "traefik"; then
-        log_success "Traefik is running"
+    # Check if Nginx is running
+    if docker ps | grep -q "nginx"; then
+        log_success "Nginx is running"
     else
-        log_error "Traefik failed to start"
-        docker compose logs traefik
+        log_error "Nginx failed to start"
+        docker compose logs nginx
         exit 1
     fi
 
@@ -169,11 +168,18 @@ deploy_services() {
 health_check() {
     log_info "Running health checks..."
 
-    # Check Traefik health
-    if curl -f http://localhost:8082/ping >/dev/null 2>&1; then
-        log_success "Traefik dashboard is accessible"
+    # Check Nginx health
+    if curl -f http://localhost/nginx-health >/dev/null 2>&1; then
+        log_success "Nginx is healthy"
     else
-        log_warning "Traefik dashboard is not accessible"
+        log_warning "Nginx health check failed"
+    fi
+
+    # Check Nginx dashboard
+    if curl -f http://localhost/nginx-status >/dev/null 2>&1; then
+        log_success "Nginx dashboard is accessible"
+    else
+        log_warning "Nginx dashboard is not accessible"
     fi
 
     # Check service routing (basic checks)
@@ -199,8 +205,9 @@ show_access_info() {
     echo "   sudo systemctl restart cloudflared"
     echo
     echo "2. Access Information:"
-    echo "   Traefik Dashboard (local): http://localhost:8082/dashboard/"
-    echo "   Traefik Dashboard (remote): https://traefik.duongbd.site/dashboard/"
+    echo "   Nginx Dashboard (local): http://localhost/nginx-status"
+    echo "   Nginx Dashboard (remote): https://nginx.duongbd.site"
+    echo "   Nginx Health: http://localhost/nginx-health"
     echo
     echo "📊 Services (after cloudflared update):"
     echo "   Kafka UI:           https://kafka.duongbd.site (user: kafka, pass: password123)"
@@ -214,6 +221,8 @@ show_access_info() {
     echo "   View logs: docker compose logs -f [service-name]"
     echo "   Stop all: docker compose down"
     echo "   Restart: docker compose restart [service-name]"
+    echo "   Test Nginx config: docker exec nginx nginx -t"
+    echo "   Reload Nginx: docker exec nginx nginx -s reload"
     echo
     echo "🔧 Cloudflared Management:"
     echo "   Status: sudo systemctl status cloudflared"
@@ -240,7 +249,7 @@ main() {
                 shift
                 ;;
             --help|-h)
-                echo "Traefik Deployment Script (for existing cloudflared setup)"
+                echo "Nginx Deployment Script (for existing cloudflared setup)"
                 echo "Usage: $0 [--dry-run] [--force] [--help]"
                 echo
                 echo "Options:"
@@ -248,7 +257,7 @@ main() {
                 echo "  --force:   Skip confirmation prompts and backups"
                 echo "  --help:    Show this help message"
                 echo
-                echo "This script deploys Traefik and Docker services only."
+                echo "This script deploys Nginx and Docker services only."
                 echo "Cloudflared tunnel management must be done manually."
                 exit 0
                 ;;
@@ -260,7 +269,7 @@ main() {
         esac
     done
 
-    log_info "Starting Traefik deployment (for existing cloudflared setup)..."
+    log_info "Starting Nginx deployment (for existing cloudflared setup)..."
 
     # Check prerequisites
     check_prerequisites
