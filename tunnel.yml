@@ -1,71 +1,55 @@
 tunnel: d46bfa9f-b5ef-4393-8191-dc058a9577db
 credentials-file: /home/boi/.cloudflared/d46bfa9f-b5ef-4393-8191-dc058a9577db.json
-
 ingress:
-  # SSH service - direct routing (unchanged)
+  # SSH service - direct routing (bypasses Traefik)
   - hostname: ssh.duongbd.site
     service: ssh://localhost:22
 
-  # Nginx dashboard (admin only)
-  - hostname: nginx.duongbd.site
-    service: https://localhost:443
-    originRequest:
-      noTLSVerify: false
-      connectTimeout: 30s
-      httpHostHeader: nginx.duongbd.site
-
-  # All HTTP services now route through Nginx
   - hostname: kafka.duongbd.site
-    service: https://localhost:443
-    originRequest:
-      noTLSVerify: false
-      connectTimeout: 30s
-      httpHostHeader: kafka.duongbd.site
-
-  - hostname: kibana.duongbd.site
-    service: https://localhost:443
-    originRequest:
-      noTLSVerify: false
-      connectTimeout: 30s
-      httpHostHeader: kibana.duongbd.site
-
-  - hostname: es.duongbd.site
-    service: https://localhost:443
-    originRequest:
-      noTLSVerify: false
-      connectTimeout: 30s
-      httpHostHeader: es.duongbd.site
-
-  - hostname: mysql.duongbd.site
-    service: https://localhost:443
-    originRequest:
-      noTLSVerify: false
-      connectTimeout: 30s
-      httpHostHeader: mysql.duongbd.site
-
-  - hostname: redis.duongbd.site
-    service: https://localhost:443
-    originRequest:
-      noTLSVerify: false
-      connectTimeout: 30s
-      httpHostHeader: redis.duongbd.site
-
-  - hostname: nexus.duongbd.site
-    service: https://localhost:443
-    originRequest:
-      noTLSVerify: false
-      connectTimeout: 30s
-      httpHostHeader: nexus.duongbd.site
-
-  # Kafka broker direct access (unchanged)
-  - hostname: kafka-broker.duongbd.site
-    service: tcp://localhost:9092
+    service: http://localhost:80
     originRequest:
       noTLSVerify: true
       connectTimeout: 30s
 
-# Final rule to catch all other traffic
-  - service: https://localhost:443
+  - hostname: kibana.duongbd.site
+    service: http://localhost:80
     originRequest:
-      noTLSVerify: false
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: es.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: mysql.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: redis.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: nexus.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # Test/development subdomain
+  - hostname: test.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # Catch-all rule - route to Traefik for handling
+  - service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
       connectTimeout: 30s
